@@ -1,0 +1,17 @@
+# .gitignore
+__pycache__/
+.env
+.excel_env/
+excel_env/
+.venv/
+venv/
+env/
+.DS_Store
+.vscode/
+.idea/
+uploads/
+*.pyc
+*.pyo
+*.log
+*.xlsx
+*.csv
