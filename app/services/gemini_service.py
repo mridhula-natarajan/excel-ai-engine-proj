@@ -1,6 +1,11 @@
+
 import os
 import google.generativeai as genai
 from fastapi import HTTPException
+from app.core.logger import get_logger
+
+logger = get_logger(__name__)
+logger.info("LOADED: %s", os.path.abspath(__file__))
 
 # Configure Gemini api key
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))

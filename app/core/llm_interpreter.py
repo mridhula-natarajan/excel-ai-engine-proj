@@ -3,8 +3,9 @@ from fastapi import HTTPException
 from app.services.gemini_service import generate_text
 import re
 from app.core.logger import get_logger
-
+import os
 logger = get_logger(__name__)
+logger.info("LOADED: %s", os.path.abspath(__file__))
 
 SYSTEM_PROMPT = """
 You are an AI data planner that converts natural-language Excel queries
@@ -15,7 +16,7 @@ Your output MUST be **valid JSON only** — no explanations, no markdown, no Pyt
 Follow this exact format:
 
 {
-  "operation": "<aggregate|math|filter|join|pivot|unpivot|date_ops|sort|top_n>",
+  "operation" : one of ["aggregate", "math", "filter", "pivot", "unpivot", "join", "date_ops", "text_analysis", "describe", "sample", "multi_step"],
   "parameters": {
       "column": "sales",
       "group_by": "region",
@@ -27,6 +28,7 @@ Follow this exact format:
 }
 
 Rules:
+- Never use synonyms (like “aggregation”, “grouping”, etc.). Always match exactly one operation keyword from the above list.
 - Never include text before or after JSON.
 - Always return a single JSON object.
 - If the query mentions sorting or 'top N', include 'sort_by', 'order', and 'limit'.
@@ -37,11 +39,13 @@ Rules:
 def call_llm_for_plan(user_query: str, sample_columns=None):
     """Sends the user query to the LLM, extracts and returns the generated JSON plan for execution."""
     logger.info("Starting LLM plan generation.")
+    logger.info("[LLM] Query -> %s", user_query)
     prompt = SYSTEM_PROMPT + "\n\nUser Query: " + user_query
     if sample_columns:
         prompt += f"\n\nAvailable columns: {', '.join(sample_columns)}"
     # get plan from llm
     raw_response = generate_text(prompt)
+    logger.info("[LLM] Raw response (truncated 1000): %s", str(raw_response)[:1000])
 
     # Clean and extract JSON even if Gemini adds markdown/code
     match = re.search(r'\{[\s\S]*\}', raw_response)

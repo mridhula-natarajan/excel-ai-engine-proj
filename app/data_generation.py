@@ -112,7 +112,7 @@ def save_excel_files(output_dir="synthetic_data"):
     for file_name, df in datasets.items():
         path = os.path.join(output_dir, file_name)
         df.to_excel(path, index=False)
-        print(f"✅ Generated {path} with shape {df.shape}")
+        print(f" Generated {path} with shape {df.shape}")
 
 
 if __name__ == "__main__":
