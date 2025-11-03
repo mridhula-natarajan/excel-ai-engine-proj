@@ -118,6 +118,21 @@ def _do_math(df, params):
             elif col1 and col2 and params.get("operator"):
                 formula = f"{col1} {params['operator']} {col2}"
 
+            if "formula" not in params:
+                # Allow split form: column + value + operation
+                if all(k in params for k in ["column", "value", "operation"]):
+                    col, val, op_type = params["column"], params["value"], params["operation"]
+                    if op_type.lower() == "multiply":
+                        params["formula"] = f"{col} * {val}"
+                    elif op_type.lower() == "divide":
+                        params["formula"] = f"{col} / {val}"
+                    elif op_type.lower() == "add":
+                        params["formula"] = f"{col} + {val}"
+                    elif op_type.lower() == "subtract":
+                        params["formula"] = f"{col} - {val}"
+            if "new_column" not in params and "new_column_name" in params:
+                params["new_column"] = params["new_column_name"]
+
         if not formula or not new_col:
             return {"status": "error", "message": "Missing formula or new_column in parameters"}
 
@@ -207,31 +222,18 @@ def _do_pivot(df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
         "result_file": result_filename if result_path else None
     }
 
-def _do_unpivot(df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Unpivots the specified table."""
+def _do_unpivot(df, params):
     id_vars = params.get("id_vars", [])
     value_vars = params.get("value_vars", [])
-    logger.info("Unpivoting table with id_vars=%s and value_vars=%s", id_vars, value_vars)
-    res = pd.melt(df, id_vars=id_vars, value_vars=value_vars, var_name="variable", value_name="value")
-    os.makedirs("results", exist_ok=True)
-    timestamp = int(time.time())
-    result_filename = f"result_{timestamp}.xlsx"
-    result_path = os.path.join("results", result_filename)
+    var_name = params.get("var_name", "variable")
+    value_name = params.get("value_name", "value")
 
-    try:
-        res.to_excel(result_path, index=False)
-        logger.info(f"Result saved at {result_path}")
-    except Exception as e:
-        logger.error(f"Failed to save result: {e}")
-        result_path = None
+    melted = df.melt(id_vars=id_vars, value_vars=value_vars, var_name=var_name, value_name=value_name)
 
-    return {
-        "status": "ok",
-        "result_df": res,
-        "preview": to_serializable(res),
-        "message": f"Executed successfully",
-        "result_file": result_filename if result_path else None
-    }
+    result_path = f"results/result_{int(time.time())}.xlsx"
+    melted.to_excel(result_path, index=False)
+
+    return {"status": "ok", "result_df": melted, "file_path": result_path}
 
 def _resolve_table_name(name: str, other_tables: dict):
     """Resolve table name from other_tables using normalization and partial matching."""
@@ -436,7 +438,7 @@ def derive_missing_columns_with_llm(plan: dict, df: 'pd.DataFrame', logger) -> T
     if not missing:
         return df, report
 
-    logger.info("🧩 Derivation needed for columns: %s", missing)
+    logger.info("Derivation needed for columns: %s", missing)
 
     # available columns tokens to propose usage
     avail_cols = list(df.columns)

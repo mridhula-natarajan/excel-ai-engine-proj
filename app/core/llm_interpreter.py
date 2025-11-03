@@ -28,6 +28,7 @@ Follow this exact format:
 }
 
 Rules:
+- **STRICTLY FOLLOW THE ABOVE JSON FORMAT ONLY. DO NOT ADD ANY OTHER PARAMETER INSIDE JSON OR USE ANY OTHER NAME FOR EXISTING PARAMETER**
 - Never use synonyms (like “aggregation”, “grouping”, etc.). Always match exactly one operation keyword from the above list.
 - Never include text before or after JSON.
 - Always return a single JSON object.
@@ -45,6 +46,7 @@ def call_llm_for_plan(user_query: str, sample_columns=None):
         prompt += f"\n\nAvailable columns: {', '.join(sample_columns)}"
     # get plan from llm
     raw_response = generate_text(prompt)
+    raw_response = raw_response.replace('""','"')
     logger.info("[LLM] Raw response (truncated 1000): %s", str(raw_response)[:1000])
 
     # Clean and extract JSON even if Gemini adds markdown/code

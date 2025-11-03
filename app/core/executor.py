@@ -24,7 +24,12 @@ def execute_plan(df: pd.DataFrame, plan: Dict[str, Any], other_tables: Optional[
         params = plan.get("parameters", {})
         logger.info("Detected operation: %s", op)
 
-        # Dispatch to appropriate executor
+        if op == "join":
+            if "on" in params and ("left_on" not in params or "right_on" not in params):
+                params["left_on"] = params["on"]
+                params["right_on"] = params["on"]
+                logger.info("Normalized join parameters: using left_on/right_on = %s", params["on"])
+
         if op == "aggregate":
             result = _do_aggregate(df, params)
         elif op == "math":
@@ -34,7 +39,25 @@ def execute_plan(df: pd.DataFrame, plan: Dict[str, Any], other_tables: Optional[
         elif op == "pivot":
             result = _do_pivot(df, params)
         elif op == "unpivot":
-            result = _do_unpivot(df, params)
+
+            result_unpivot = _do_unpivot(df, params)
+            
+            # If helper returns dict (with dataframe inside)
+            if isinstance(result_unpivot, dict) and "result_df" in result_unpivot:
+                result_df = result_unpivot["result_df"]
+                file_path = result_unpivot.get("file_path")
+            else:
+                result_df = result_unpivot
+                file_path = None
+            logger.info(f"Unpivot result columns: {result_df.columns.tolist()}")
+
+            result = {
+                "status": "ok",
+                "result_df": result_df,
+                "preview": to_serializable(result_df, max_rows=10),
+                "message": "Unpivot operation executed successfully.",
+                "file_path": file_path
+            }
         elif op == "join":
             result = _do_join(df, params, other_tables)
         elif op == "date_ops":
